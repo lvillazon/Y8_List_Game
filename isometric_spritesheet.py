@@ -5,7 +5,7 @@ from pygame.surface import Surface
 
 from console_messages import console_msg
 
-BLOCK_SIZE = (100,100)
+BLOCK_SIZE = 64
 
 def default_image():
     return pygame.Surface(BLOCK_SIZE).convert()
@@ -14,13 +14,20 @@ class SpriteSheet():
     """ grabs individual sprites from a sheet
     modified from the flat version used in BitQuest """
 
-    def __init__(self, filename, scale: float = 1.0):
+    def __init__(self, filename, block_size: int, scale: float = 1.0):
         try:
             self.sheet = pygame.image.load(filename).convert()
         except pygame.error:
             console_msg("Failed to load spritesheet:" + filename, 0)
             raise SystemExit
         self.scale = scale
+        self.block_size = int(block_size * scale)
+    
+    def get_rows(self) -> int:
+        return self.sheet.get_height() // BLOCK_SIZE
+
+    def get_columns(self) -> int:
+        return self.sheet.get_width() // BLOCK_SIZE
 
     def image_at(self, rectangle, color_key: Optional = None) -> pygame.Surface:
         rect = pygame.Rect(rectangle)
