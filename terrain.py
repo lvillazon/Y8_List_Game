@@ -3,11 +3,16 @@
 import random
 import pygame
 import isometric_spritesheet
+from camera import Camera
 from config import BLOCK_SIZE
 
 class Terrain:
-    def __init__(self, width, length):
+    def __init__(self, display, width, length):
         # create an isometric tile grid, of width x length tiles
+        self._display = display
+        self.camera = Camera()
+        self.display_centre = (display.get_width() // 2,
+                               display.get_height() // 2)
         # load all tile images from the spritesheet
         self.tile_palette = isometric_spritesheet.SpriteSheet(
             "assets\iso_blocks_basic.png", BLOCK_SIZE, 1)
@@ -35,21 +40,24 @@ class Terrain:
                 row.append(tile.copy())
             self.tile_grid.append(row)
 
-    def update(self, display):
+    @property
+    def display(self):
+        return self._display
+
+    def update(self, pos):
         # test render of the screen filled with grass tiles
         TILE_X_INCREMENT = self.tile_palette.block_size // 2
         TILE_Y_INCREMENT = self.tile_palette.block_size // 4
-        camera_x = display.get_width() // 2
-        camera_y = display.get_height() // 2
         # calculate the start position for the top left of the grid
-        # so that the grid is in the middle of the screen
-        # TODO add a camera offset, to allow scrolling
-        start_x = (camera_x -
+        # so that the centre of the grid is positioned
+        # over the centre of the screen +/- the camera offset
+        start_x, start_y = pos #self.display_centre
+        start_x += (self.camera.x -
                    (self.rows // 2) * TILE_X_INCREMENT +
                    (self.columns // 2) * TILE_X_INCREMENT -
                    BLOCK_SIZE // 2
                    )
-        start_y = (camera_y -
+        start_y += (self.camera.y -
                    (self.columns // 2) * TILE_Y_INCREMENT -
                    (self.rows // 2) * TILE_Y_INCREMENT +
                    4  # FUDGE FACTOR - is it TILE_Y_INCREMENT // 4?
@@ -58,30 +66,22 @@ class Terrain:
             x = start_x
             y = start_y
             for tile in row:
-                display.blit(tile, (x, y))
+                self.display.blit(tile, (x, y))
                 x += TILE_X_INCREMENT
                 y += TILE_Y_INCREMENT
             start_x -= TILE_X_INCREMENT
             start_y += TILE_Y_INCREMENT
 
-        # DEBUG - draw cross hairs in the centre, to check grid draws ok
-        centre_x = display.get_width() // 2
-        centre_y = display.get_height() // 2
-        cross_hairs_length = 20
-        pygame.draw.line(display, "red",
-                         (centre_x - cross_hairs_length, centre_y),
-                         (centre_x + cross_hairs_length, centre_y))
-        pygame.draw.line(display, "red",
-                          (centre_x, centre_y - cross_hairs_length),
-                          (centre_x, centre_y + cross_hairs_length))
-        # random.seed(self.rng_seed)
-        # start_x = display.get_width()
-        # while start_x > 0:
-        #     y = 100  # horizon height
-        #     x = start_x
-        #     while x < display.get_width():
-        #         x += TILE_X_INCREMENT
-        #         y += TILE_Y_INCREMENT
-        #         tile = random.choice(self.ground_tiles)
-        #         display.blit(tile, (x, y))
-        #     start_x -= self.tile_palette.block_size
+        self.camera.draw_crosshairs(self.display)
+
+    def rotate(self):
+        # transpose the terrain grid to rotate the landscape through 90 degrees
+        # this is a relatively slow method
+        # could use zip() or the numpy library, if we need more speed
+        rotated = []
+        for i in range(len(self.tile_grid[0])):
+            transposed_row = []
+            for row in self.tile_grid:
+                transposed_row.insert(0, row[i])
+            rotated.append(transposed_row)
+        self.tile_grid = rotated
