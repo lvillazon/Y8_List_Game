@@ -33,15 +33,3 @@ class Camera:
     def y(self, value):
         self._offset[1] = value
 
-    def draw_crosshairs(self, display):
-        # add a cross at the current camera position
-        cross_hairs_length = 20
-        cx = display.get_width() // 2
-        cy = display.get_height() // 2
-        pygame.draw.line(display, "red",
-                         (cx - cross_hairs_length, cy),
-                         (cx + cross_hairs_length, cy))
-        pygame.draw.line(display, "red",
-                          (cx, cy - cross_hairs_length),
-                          (cx, cy + cross_hairs_length))
-

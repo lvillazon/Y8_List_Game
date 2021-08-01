@@ -3,9 +3,8 @@ from typing import Optional
 import pygame
 from pygame.surface import Surface
 
+from config import BLOCK_SIZE
 from console_messages import console_msg
-
-BLOCK_SIZE = 64
 
 def default_image():
     return pygame.Surface(BLOCK_SIZE).convert()
@@ -28,6 +27,12 @@ class SpriteSheet():
 
     def get_columns(self) -> int:
         return self.sheet.get_width() // BLOCK_SIZE
+
+    def get_tile_width(self) -> int:
+        return BLOCK_SIZE
+
+    def get_tile_height(self) -> int:
+        return BLOCK_SIZE
 
     def image_at(self, rectangle, color_key: Optional = None) -> pygame.Surface:
         rect = pygame.Rect(rectangle)
