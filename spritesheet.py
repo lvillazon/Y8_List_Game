@@ -3,11 +3,10 @@ from typing import Optional
 import pygame
 from pygame.surface import Surface
 
-from config import BLOCK_SIZE
 from console_messages import console_msg
 
 def default_image():
-    return pygame.Surface(BLOCK_SIZE).convert()
+    return pygame.Surface((0,0)).convert()
 
 class SpriteSheet():
     """ grabs individual sprites from a sheet
@@ -20,19 +19,19 @@ class SpriteSheet():
             console_msg("Failed to load spritesheet:" + filename, 0)
             raise SystemExit
         self.scale = scale
-        self.block_size = int(block_size * scale)
+        self.block_size = block_size
     
     def get_rows(self) -> int:
-        return self.sheet.get_height() // BLOCK_SIZE
+        return self.sheet.get_height() // self.block_size
 
     def get_columns(self) -> int:
-        return self.sheet.get_width() // BLOCK_SIZE
+        return self.sheet.get_width() // self.block_size
 
     def get_tile_width(self) -> int:
-        return BLOCK_SIZE
+        return self.block_size
 
     def get_tile_height(self) -> int:
-        return BLOCK_SIZE
+        return self.block_size
 
     def image_at(self, rectangle, color_key: Optional = None) -> pygame.Surface:
         rect = pygame.Rect(rectangle)

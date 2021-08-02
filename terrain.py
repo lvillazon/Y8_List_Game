@@ -3,9 +3,9 @@
 import random
 import pygame
 import pygame.gfxdraw
-import isometric_spritesheet
+import spritesheet
 from camera import Camera
-from config import BLOCK_SIZE, SKY_BLUE, Point
+from config import *
 
 
 class Terrain:
@@ -35,13 +35,13 @@ class Terrain:
         # self.base_tiles = tuple(self.zoomed_tiles)  # master copy
 
         self.tile_colours = {
-            "light green": (186, 212, 173),
-            "teal"       : (85, 145, 133),
-            "dark green" : (127, 147, 98),
-            "straw"      : (226, 212, 147),
-            "gold"       : (224, 153, 63),
-            "tan"        : (209, 188, 157),
-            "brown"      : (151, 56, 54),
+            "light green": LIGHT_GREEN,
+            "teal"       : TEAL,
+            "dark green" : DARK_GREEN,
+            "straw"      : STRAW,
+            "gold"       : GOLD,
+            "tan"        : TAN,
+            "brown"      : BROWN,
         }
 
         # build a dict all all tile types, keyed by colour
@@ -73,8 +73,12 @@ class Terrain:
         # render the current landscape with the correct x,y panning
         if self.landscape_cache_dirty:
             self.landscape = self.regen_landscape()
-        pos = Point(self.display.get_width() // 2 - centred_on.x,
-                    self.display.get_height() // 2 - centred_on.y)
+        pos = (self.display.get_width()
+               - self.landscape.get_width() // 2
+               - centred_on.x,
+               self.display.get_height()
+               - self.landscape.get_height() // 2
+               - centred_on.y)
         self.display.blit(self.landscape, pos)
         self.draw_crosshairs(self.display)
 
@@ -90,15 +94,12 @@ class Terrain:
         # calculate the space needed for the whole tile grid
         rows = len(self.tile_grid)
         cols = len(self.tile_grid[0])
-        print(rows, cols)
         min_x = -tile_x_increment * rows
         max_x = tile_x_increment * cols
         min_y = 0
         max_y = tile_y_increment * (rows + cols+1) #+ tile_x_increment
         size = (max_x - min_x, max_y - min_y)
         landscape = pygame.Surface(size)
-        centred_on = Point(landscape.get_width() // 2,
-                           (landscape.get_height() // 2 - tile_y_increment//2))
         landscape.fill(SKY_BLUE)
 
         # calculate the start position for the top left of the grid
