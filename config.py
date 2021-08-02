@@ -1,4 +1,6 @@
 """ TODO read any constants that might need to be changed from a txt file """
+from collections import namedtuple
+
 import pygame
 
 GAME_NAME = "Untitled List Game"
@@ -11,3 +13,5 @@ BLOCK_SIZE = 256
 
 # Colour palette
 SKY_BLUE = pygame.Color(138, 198, 224)
+
+Point = namedtuple('Point', ['x', 'y'])

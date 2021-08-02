@@ -2,30 +2,53 @@
 
 import random
 import pygame
+import pygame.gfxdraw
 import isometric_spritesheet
 from camera import Camera
-from config import BLOCK_SIZE, SKY_BLUE
+from config import BLOCK_SIZE, SKY_BLUE, Point
 
 
 class Terrain:
-    def __init__(self, display, width, length):
+    def __init__(self, display, width, length, zoom):
         # create an isometric tile grid, of width x length tiles
         self._display = display
+        self.original_block_size = 256  # default for zoom = 1.0
+        self.zoom = zoom
+        # signals that the landscape should be regenerated from tiles
+        self.landscape_cache_dirty = True
+
         # load all tile images from the spritesheet
-        self.tile_palette = isometric_spritesheet.SpriteSheet(
-            "assets\iso_blocks_hi-res.png", BLOCK_SIZE, 1)
-        self.zoomed_tiles = []
-        for row in range(self.tile_palette.get_rows()):
-            for col in range(self.tile_palette.get_columns()):
-                tile_rect = pygame.Rect(
-                    col * BLOCK_SIZE,
-                    row * BLOCK_SIZE,
-                    BLOCK_SIZE,
-                    BLOCK_SIZE
-                )
-                self.zoomed_tiles.append(
-                    self.tile_palette.image_at(tile_rect, -1).copy())
-        self.base_tiles = tuple(self.zoomed_tiles)  # master copy
+        # replaced by procedurally drawn tiles, for now
+        # self.tile_palette = isometric_spritesheet.SpriteSheet(
+        #     "assets\iso_blocks_hi-res.png", BLOCK_SIZE, 1)
+        # self.zoomed_tiles = []
+        # for row in range(self.tile_palette.get_rows()):
+        #     for col in range(self.tile_palette.get_columns()):
+        #         tile_rect = pygame.Rect(
+        #             col * BLOCK_SIZE,
+        #             row * BLOCK_SIZE,
+        #             BLOCK_SIZE,
+        #             BLOCK_SIZE
+        #         )
+        #         self.zoomed_tiles.append(
+        #             self.tile_palette.image_at(tile_rect, -1).copy())
+        # self.base_tiles = tuple(self.zoomed_tiles)  # master copy
+
+        self.tile_colours = {
+            "light green": (186, 212, 173),
+            "teal"       : (85, 145, 133),
+            "dark green" : (127, 147, 98),
+            "straw"      : (226, 212, 147),
+            "gold"       : (224, 153, 63),
+            "tan"        : (209, 188, 157),
+            "brown"      : (151, 56, 54),
+        }
+
+        # build a dict all all tile types, keyed by colour
+        # the change_zoom() function recreates all the tiles anyway, so
+        # we can just use that
+        self.all_tiles = {}
+        self.change_zoom(self.zoom)
 
         # build the 'map' of tile numbers representing the terrain tiles
         # this might eventually be read from a file
@@ -35,97 +58,67 @@ class Terrain:
         for x in range(width):
             row = []
             for y in range(length):
-                tile = random.randint(0, len(self.base_tiles)-1)
+                tile = random.choice(list(self.tile_colours.values()))
                 row.append(tile)
             self.tile_grid.append(row)
+
+        # generate a single image composed of the tiles arranged in the grid
+        self.landscape = self.regen_landscape()
 
     @property
     def display(self):
         return self._display
 
-    def update(self, centred_on, zoom):
-        # render the terrain tiles with the correct pan and zoom
-        # transform all tiles to the current zoom level
-        new_size = (int(self.tile_palette.get_tile_width() * zoom),
-                    int(self.tile_palette.get_tile_height() * zoom))
-        #new_size = (32, 32)
-        for i in range(len(self.base_tiles)):
-            tile = self.base_tiles[i].copy()
-            scaled_tile = pygame.transform.smoothscale(tile, new_size)
-            color_key = scaled_tile.get_at((0, 0))
-            scaled_tile.set_colorkey(color_key, pygame.RLEACCEL)
-            self.zoomed_tiles[i] = scaled_tile.copy()
-        zoomed_block_size = int(self.tile_palette.block_size * zoom)
-        #BLOCK_SIZE = 256
-        tile_x_increment = zoomed_block_size // 2
-        tile_y_increment = zoomed_block_size // 4
+    def update(self, centred_on):
+        # render the current landscape with the correct x,y panning
+        if self.landscape_cache_dirty:
+            self.landscape = self.regen_landscape()
+        pos = Point(self.display.get_width() // 2 - centred_on.x,
+                    self.display.get_height() // 2 - centred_on.y)
+        self.display.blit(self.landscape, pos)
+        self.draw_crosshairs(self.display)
+
+    def regen_landscape(self) -> pygame.Surface:
+        # assembles all the tiles in the map into a single image
+        # this only needs to be done when one of the tiles changes
+        # or the map is zoomed or rotated.
+        # The rest of the time, the cached landscape can be used.
+
+        tile_x_increment = self.block_size // 2
+        tile_y_increment = self.block_size // 4
+
+        # calculate the space needed for the whole tile grid
+        rows = len(self.tile_grid)
+        cols = len(self.tile_grid[0])
+        print(rows, cols)
+        min_x = -tile_x_increment * rows
+        max_x = tile_x_increment * cols
+        min_y = 0
+        max_y = tile_y_increment * (rows + cols+1) #+ tile_x_increment
+        size = (max_x - min_x, max_y - min_y)
+        landscape = pygame.Surface(size)
+        centred_on = Point(landscape.get_width() // 2,
+                           (landscape.get_height() // 2 - tile_y_increment//2))
+        landscape.fill(SKY_BLUE)
+
         # calculate the start position for the top left of the grid
-        # so that the centre of the grid is positioned
-        # over the centred_on coords
-        start_x = (centred_on.x -
-                   (self.rows / 2) * tile_x_increment +
-                   (self.columns / 2) * tile_x_increment -
-                   zoomed_block_size // 2
-                   )
-        start_y = (centred_on.y -
-                   (self.columns / 2) * tile_y_increment -
-                   (self.rows / 2) * tile_y_increment -
-                   12 # FUDGE FACTOR - BLOCK_SIZE * 3 / 16?? WHY THIS?
-                   )
+        # so that it exactly fits on the grid
+        start_x = (rows-1) * tile_x_increment
+        start_y = 0
+
         for row in self.tile_grid:
             x = start_x
             y = start_y
-            for tile in row:
-                self.display.blit(self.zoomed_tiles[tile], (x, y))
-                #pygame.display.update()
-                #pygame.time.wait(100)
+            for colour in row:
+                landscape.blit(
+                    self.get_tile(colour),
+                    (x, y))
                 x += tile_x_increment
                 y += tile_y_increment
             start_x -= tile_x_increment
             start_y += tile_y_increment
-
-        self.draw_crosshairs(self.display)
-
-    def old_update(self, centred_on, zoom):
-        # render the terrain tiles with the correct pan and zoom
-        # draw initially onto a temp surface, then zoom it
-        canvas_width = self.display.get_width() * 1
-        canvas_height = self.display.get_height() * 1
-        canvas = pygame.Surface((canvas_width, canvas_height))
-        canvas.fill(SKY_BLUE)
-        TILE_X_INCREMENT = self.tile_palette.block_size // 2
-        TILE_Y_INCREMENT = self.tile_palette.block_size // 4
-        # calculate the start position for the top left of the grid
-        # so that the centre of the grid is positioned
-        # over the centred_on coords
-        start_x = (centred_on.x -
-                   (self.rows / 2) * TILE_X_INCREMENT +
-                   (self.columns / 2) * TILE_X_INCREMENT -
-                   BLOCK_SIZE // 2
-                   )
-        start_y = (centred_on.y -
-                   (self.columns / 2) * TILE_Y_INCREMENT -
-                   (self.rows / 2) * TILE_Y_INCREMENT -
-                   12 # FUDGE FACTOR - BLOCK_SIZE * 3 / 16?? WHY THIS?
-                   )
-        for row in self.tile_grid:
-            x = start_x
-            y = start_y
-            for tile in row:
-                canvas.blit(tile, (x, y))
-                x += TILE_X_INCREMENT
-                y += TILE_Y_INCREMENT
-            start_x -= TILE_X_INCREMENT
-            start_y += TILE_Y_INCREMENT
-
-        new_size = (int(canvas.get_width()*zoom),
-                    int(canvas.get_height()*zoom))
-        canvas = pygame.transform.smoothscale(canvas, new_size)
-        # copy the temp canvas onto the actual display surface
-        new_position = (self.display.get_width() // 2 - canvas.get_width() // 2,
-                        self.display.get_height() // 2 - canvas.get_height() // 2)
-        self.display.blit(canvas, new_position)
-        self.draw_crosshairs(self.display)
+        self.landscape_cache_dirty = False  # because we have just updated
+        return landscape
 
     def rotate(self):
         # transpose the terrain grid to rotate the landscape through 90 degrees
@@ -138,6 +131,7 @@ class Terrain:
                 transposed_row.insert(0, row[i])
             rotated.append(transposed_row)
         self.tile_grid = rotated
+        self.landscape_cache_dirty = True
 
     def draw_crosshairs(self, display):
         # add a cross at the current camera position
@@ -151,3 +145,44 @@ class Terrain:
                           (cx, cy - cross_hairs_length),
                           (cx, cy + cross_hairs_length))
 
+    def get_tile(self, colour) -> pygame.Surface:
+        # returns a pre-zoomed tile surface from the cached dict
+        return self.all_tiles[colour]
+
+    def change_zoom(self, new_zoom):
+        # rescale all the tiles in the cached dict
+        for colour in self.tile_colours.values():
+            self.all_tiles[colour] = self.draw_tile(new_zoom, colour)
+        self.landscape_cache_dirty = True
+
+    def draw_tile(self, zoom, top_face_colour) -> pygame.Surface:
+        # procedurally create a single, flat terrain tile
+        self.block_size = int(self.original_block_size * zoom)
+        canvas = pygame.Surface((self.block_size, self.block_size))
+        # the tile is sized to fill the canvas
+        # turn lines off when the grid is too small
+        line_width = min(1, int(6 * zoom))
+        line_colour = "black"
+        mid_width = canvas.get_width() // 2
+        tile_height = canvas.get_height() // 4
+        top_north = (mid_width, 0)
+        top_south = (mid_width, tile_height * 2)
+        top_east = (canvas.get_width()-line_width, tile_height)
+        top_west = (0, tile_height)
+        # bottom_north isn't needed because it is always hidden
+        bottom_south = (mid_width, tile_height * 3)
+        bottom_east = (canvas.get_width()-line_width, tile_height * 2)
+        bottom_west = (0, tile_height * 2)
+        top_face = (top_north, top_east, top_south, top_west)
+        left_face = (top_west, top_south, bottom_south, bottom_west)
+        right_face = (top_east, bottom_east, bottom_south, top_south)
+        canvas.fill("red")  # for colour keying - don't use red on tiles
+        canvas.set_colorkey("red")
+        #pygame.draw.rect(canvas, "blue", canvas.get_rect(), 1)  # TEST bounding box
+        pygame.draw.polygon(canvas, top_face_colour, top_face)
+        pygame.draw.polygon(canvas, self.tile_colours["brown"], left_face)
+        pygame.draw.polygon(canvas, self.tile_colours["tan"], right_face)
+        pygame.draw.lines(canvas, line_colour, True, top_face, line_width)
+        pygame.draw.lines(canvas, line_colour, True, left_face, line_width)
+        pygame.draw.lines(canvas, line_colour, True, right_face, line_width)
+        return canvas
