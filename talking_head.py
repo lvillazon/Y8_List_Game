@@ -10,7 +10,7 @@ class TalkingHead(Panel):
         # load all head images from the spritesheet
         head_size = 600
         head_sprites = spritesheet.SpriteSheet(
-             "assets\\farmer_bear_heads.png", head_size, 0.38)
+             "assets\\farmer_bear_heads.png", head_size, head_size, 0.38)
         self.head_palette = []
         for row in range(head_sprites.get_rows()):
             for col in range(head_sprites.get_columns()):

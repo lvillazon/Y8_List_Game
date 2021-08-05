@@ -3,6 +3,7 @@ from typing import Optional
 import pygame
 from pygame.surface import Surface
 
+from config import Point
 from console_messages import console_msg
 
 def default_image():
@@ -12,26 +13,31 @@ class SpriteSheet():
     """ grabs individual sprites from a sheet
     modified from the flat version used in BitQuest """
 
-    def __init__(self, filename, block_size: int, scale: float = 1.0):
+    def __init__(self, filename,
+                 block_x: int, block_y:int = 0,
+                 scale: float = 1.0):
         try:
             self.sheet = pygame.image.load(filename).convert()
         except pygame.error:
             console_msg("Failed to load spritesheet:" + filename, 0)
             raise SystemExit
         self.scale = scale
-        self.block_size = block_size
+        if block_y:
+            self.block_size = Point(block_x, block_y)
+        else:
+            self.block_size = Point(block_x, block_x)
     
     def get_rows(self) -> int:
-        return self.sheet.get_height() // self.block_size
+        return self.sheet.get_height() // self.block_size.y
 
     def get_columns(self) -> int:
-        return self.sheet.get_width() // self.block_size
+        return self.sheet.get_width() // self.block_size.x
 
     def get_tile_width(self) -> int:
-        return self.block_size
+        return self.block_size.x
 
     def get_tile_height(self) -> int:
-        return self.block_size
+        return self.block_size.y
 
     def image_at(self, rectangle, color_key: Optional = None) -> pygame.Surface:
         rect = pygame.Rect(rectangle)

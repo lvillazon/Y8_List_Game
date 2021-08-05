@@ -9,7 +9,7 @@ from config import *
 
 
 class Terrain:
-    def __init__(self, display, width, length, zoom):
+    def __init__(self, display, length, width, zoom):
         # create an isometric tile grid, of width x length tiles
         self._display = display
         self.original_block_size = 256  # default for zoom = 1.0
@@ -73,14 +73,7 @@ class Terrain:
         # render the current landscape with the correct x,y panning
         if self.landscape_cache_dirty:
             self.landscape = self.regen_landscape()
-        pos = (self.display.get_width()
-               - self.landscape.get_width() // 2
-               - centred_on.x,
-               self.display.get_height()
-               - self.landscape.get_height() // 2
-               - centred_on.y)
-        self.display.blit(self.landscape, pos)
-        self.draw_crosshairs(self.display)
+        return self.landscape
 
     def regen_landscape(self) -> pygame.Surface:
         # assembles all the tiles in the map into a single image
@@ -88,23 +81,21 @@ class Terrain:
         # or the map is zoomed or rotated.
         # The rest of the time, the cached landscape can be used.
 
-        tile_x_increment = self.block_size // 2
-        tile_y_increment = self.block_size // 4
-
+        tile_inc = self.get_tile_increment()
         # calculate the space needed for the whole tile grid
-        rows = len(self.tile_grid)
-        cols = len(self.tile_grid[0])
-        min_x = -tile_x_increment * rows
-        max_x = tile_x_increment * cols
+        rows = self.get_rows()
+        cols = self.get_cols()
+        min_x = -tile_inc.x * rows
+        max_x = tile_inc.x * cols
         min_y = 0
-        max_y = tile_y_increment * (rows + cols+1) #+ tile_x_increment
+        max_y = tile_inc.y * (rows + cols+1) #+ tile_x_increment
         size = (max_x - min_x, max_y - min_y)
         landscape = pygame.Surface(size)
         landscape.fill(SKY_BLUE)
 
         # calculate the start position for the top left of the grid
         # so that it exactly fits on the grid
-        start_x = (rows-1) * tile_x_increment
+        start_x = (rows-1) * tile_inc.x
         start_y = 0
 
         for row in self.tile_grid:
@@ -114,10 +105,10 @@ class Terrain:
                 landscape.blit(
                     self.get_tile(colour),
                     (x, y))
-                x += tile_x_increment
-                y += tile_y_increment
-            start_x -= tile_x_increment
-            start_y += tile_y_increment
+                x += tile_inc.x
+                y += tile_inc.y
+            start_x -= tile_inc.x
+            start_y += tile_inc.y
         self.landscape_cache_dirty = False  # because we have just updated
         return landscape
 
@@ -133,18 +124,6 @@ class Terrain:
             rotated.append(transposed_row)
         self.tile_grid = rotated
         self.landscape_cache_dirty = True
-
-    def draw_crosshairs(self, display):
-        # add a cross at the current camera position
-        cross_hairs_length = 20
-        cx = display.get_width() // 2
-        cy = display.get_height() // 2
-        pygame.draw.line(display, "red",
-                         (cx - cross_hairs_length, cy),
-                         (cx + cross_hairs_length, cy))
-        pygame.draw.line(display, "red",
-                          (cx, cy - cross_hairs_length),
-                          (cx, cy + cross_hairs_length))
 
     def get_tile(self, colour) -> pygame.Surface:
         # returns a pre-zoomed tile surface from the cached dict
@@ -187,3 +166,32 @@ class Terrain:
         pygame.draw.lines(canvas, line_colour, True, left_face, line_width)
         pygame.draw.lines(canvas, line_colour, True, right_face, line_width)
         return canvas
+
+    def get_rows(self) -> int:
+        # number of tiles per column
+        return len(self.tile_grid)
+
+    def get_cols(self) -> int:
+        # number of tiles per row):
+        return len(self.tile_grid[0])
+
+    def get_tile_increment(self) -> Point:
+        return Point(self.block_size // 2, self.block_size // 4)
+
+    def get_ground_coords(self, grid_position: Point) -> Point:
+        # convert tile grid coords to pixel coords
+        # the x coord of the bottom-left corner of the bottom-left tile
+        # is always 0, and the top-right corner of the top-right tile is
+        # always at x = terrain width
+        # because the terrain surface is sized to exactly fit
+        # so we can calculate the position of any tile using just the terrain
+        # rectangle and the size of one tile
+
+        tx = self. get_tile_increment().x
+        ty = self.get_tile_increment().y
+        r = self.get_rows()
+        screen_pos = Point(
+            (tx * (r - grid_position.y) + tx * grid_position.x),
+            (r * ty - (r - grid_position.y) * ty + ty * grid_position.x)
+        )
+        return screen_pos
