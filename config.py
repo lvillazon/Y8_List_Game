@@ -7,7 +7,8 @@ GAME_NAME = "Apricot Farm"
 VERSION = "0.0"
 MSG_VERBOSITY = 9
 
-WINDOW_SIZE = (1600,830)
+Point = namedtuple('Point', ['x', 'y'])
+WINDOW_SIZE = Point(1600,830)
 
 BLOCK_SIZE = 256
 
@@ -24,4 +25,7 @@ BEAR_BROWN = (183, 142, 112)
 UI_BACKGROUND = BEAR_BROWN
 UI_FOREGROUND = STRAW
 
-Point = namedtuple('Point', ['x', 'y'])
+# Filepaths
+CODE_FONT_FILE = "assets\\DejaVuSansMono.ttf"
+EDITOR_ICON_FILE = "assets\\editor icons.png"
+
