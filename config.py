@@ -3,7 +3,7 @@ from collections import namedtuple
 
 import pygame
 
-GAME_NAME = "Apricot Farm"
+GAME_NAME = "Thingummy Farm"
 VERSION = "0.0"
 MSG_VERBOSITY = 9
 

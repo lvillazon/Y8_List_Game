@@ -1,4 +1,3 @@
-import random
 import pygame
 from math import copysign
 
@@ -57,29 +56,15 @@ class World:
                                  self.dummy_session,
                                  width = self.display.get_width() - self.basket.size.x)
         self.editor_position = (0, WINDOW_SIZE.y - self.editor.height)
-        self.editor.show()
+        #self.editor.show()
 
         self.running = True
         self.frame_counter = 0
         self.clock = pygame.time.Clock()
 
     def update(self):
-        # update the editor, if necessary
-        if self.editor.is_active():
-            self.editor.update()
-            # still need to check if buttons outside the editor were clicked
-            #self.check_buttons()
-        else:
-            # only handle keystrokes for game control
-            # if the code editor isn't open
-            #self.check_keyboard_and_mouse()
-
-            # process all other events to clear the queue
-            for event in pygame.event.get():
-                if event.type == pygame.KEYUP:
-                    self.repeat_lock = False  # release the lock
-                if event.type == pygame.QUIT:
-                    self.running = False
+        # handle mouse and keyboard events
+        self.check_keyboard_and_mouse()
 
         # render all onscreen objects
         self.display.fill(SKY_BLUE)
@@ -117,39 +102,56 @@ class World:
 
         self.clock.tick()
         self.frame_counter += 1
-        if self.frame_counter > 50:  # to avoid slowdown due to fps spam
-            print(self.clock.get_fps())
+        if self.frame_counter > 200:  # to avoid slowdown due to fps spam
+            print(int(self.clock.get_fps()))
             self.frame_counter = 0
 
+    def mouse_over_editor(self) -> bool:
+        # returns true if the mouse pointer is anywhere within the code pane
+        editor_rect = pygame.Rect(self.editor_position,
+                                  (self.editor.width, self.editor.height)
+                                  )
+        return editor_rect.collidepoint(pygame.mouse.get_pos())
+
     def check_keyboard_and_mouse(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if pygame.mouse.get_pressed()[0]:  # left button
-                    # check which panel we are over
-                    if self.talking_head.mouse_over():
-                        self.talking_head.cycle_head()
-                    else:
+        # check for context switch between game area and code editor
+        # this is done by peeking the events so that we don't empty the
+        # event queue and it can still be handled by whichever context
+        # is active
+        if pygame.event.peek(pygame.MOUSEBUTTONDOWN):
+            if self.mouse_over_editor():
+                self.editor.active = True
+            else:
+                self.editor.active = False
+
+        # handle events in the appropriate context
+        if self.editor.is_active():
+            self.editor.update()
+        else:
+            for event in pygame.event.get():
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if pygame.mouse.get_pressed()[0]:  # LMB
                         # terrain window, so we are dragging
                         self.drag_start = Point(*pygame.mouse.get_pos())
                         self.old_viewpoint = self.viewpoint
-                elif pygame.mouse.get_pressed()[2]:  # right button
-                    self.terrain.rotate()
-            elif event.type == pygame.MOUSEWHEEL:
-                min_zoom = .1
-                max_zoom = 10
-                # adjust zoom level by +/- 10%
-                self.zoom *= 1 + .1 * copysign(1, event.y)
-                # constrain zoom between min_ and max_
-                self.zoom = min(max(self.zoom, min_zoom), max_zoom)
-                self.terrain.change_zoom(self.zoom)
-                self.farmer.zoom(self.zoom)
-                #print(self.zoom, min(1, int(4 * self.zoom)))
+                    elif pygame.mouse.get_pressed()[2]:  # right button
+                        self.terrain.rotate()
+                elif event.type == pygame.MOUSEWHEEL:
+                    if not self.editor.is_active():
+                        min_zoom = .1
+                        max_zoom = 10
+                        # adjust zoom level by +/- 10%
+                        self.zoom *= 1 + .1 * copysign(1, event.y)
+                        # constrain zoom between min_ and max_
+                        self.zoom = min(max(self.zoom, min_zoom), max_zoom)
+                        self.terrain.change_zoom(self.zoom)
+                        self.farmer.zoom(self.zoom)
 
-        if pygame.mouse.get_pressed()[0]:  # LMB held down
-            if not self.talking_head.mouse_over():
-                drag_x = self.drag_start.x - pygame.mouse.get_pos()[0]
-                drag_y = self.drag_start.y - pygame.mouse.get_pos()[1]
-                self.viewpoint = Point(self.old_viewpoint.x + drag_x,
-                                       self.old_viewpoint.y + drag_y)
+            # check for ongoing mouse-drag
+            if pygame.mouse.get_pressed()[0]:  # LMB held down
+                if not self.talking_head.mouse_over() and self.drag_start:
+                    drag_x = self.drag_start.x - pygame.mouse.get_pos()[0]
+                    drag_y = self.drag_start.y - pygame.mouse.get_pos()[1]
+                    self.viewpoint = Point(self.old_viewpoint.x + drag_x,
+                                           self.old_viewpoint.y + drag_y)
+
