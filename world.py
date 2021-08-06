@@ -10,6 +10,7 @@ from console_messages import console_msg
 from panel import Panel
 from terrain import Terrain
 from talking_head import TalkingHead
+from code_editor import CodeWindow
 
 
 class World:
@@ -29,6 +30,7 @@ class World:
                             Point(screen.get_width()-200,0),
                             Point(200, screen.get_height())
                             )
+        self.editor = CodeWindow()
 
         # Characters
         self.farmer = characters.Character("assets\\farmer cropped.png",
