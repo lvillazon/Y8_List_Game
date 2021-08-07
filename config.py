@@ -6,11 +6,13 @@ import pygame
 GAME_NAME = "Thingummy Farm"
 VERSION = "0.0"
 MSG_VERBOSITY = 9
+BOUNDING_BOX = False
 
 Point = namedtuple('Point', ['x', 'y'])
 WINDOW_SIZE = Point(1600,830)
 
 BLOCK_SIZE = 256
+SMOOTH_ZOOM_THRESHOLD = 0.3  # zooms smaller than this use smoothscaling
 
 # Colour palette
 SKY_BLUE = (138, 198, 224)

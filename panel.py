@@ -9,20 +9,20 @@ class Panel:
         self.display = display
         self.position = position
         self.size = size
-        self._panel = pygame.Surface(size)
+        self._panel = pygame.Surface(size).convert()
         self._panel.fill("red")  # for colour keying
         self._panel.set_colorkey("red")
+        self.border_width = 5
         self.redraw()
 
     def redraw(self):
-        border_width = 5
         # fill the middle
         pygame.draw.rect(self._panel, UI_BACKGROUND,
                          pygame.Rect(
-                            border_width,
-                            border_width,
-                            self.size.x - border_width*2,
-                            self.size.y - border_width*2
+                            self.border_width,
+                            self.border_width,
+                            self.size.x - self.border_width*2,
+                            self.size.y - self.border_width*2
                          )
                         )
         pygame.draw.rect(self._panel, UI_FOREGROUND,

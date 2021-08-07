@@ -34,7 +34,7 @@ class World:
                             )
 
         # Characters
-        self.farmer = characters.Character("assets\\farmer cropped.png",
+        self.farmer = characters.Character("assets\\green_bears_left.png",
                                            Point(2,4),
                                            self.zoom)
 
@@ -62,6 +62,15 @@ class World:
         self.frame_counter = 0
         self.clock = pygame.time.Clock()
 
+    def blit_alpha(self, target, source, location, opacity):
+        x = location[0]
+        y = location[1]
+        temp = pygame.Surface((source.get_width(), source.get_height())).convert()
+        temp.blit(target, (-x, -y))
+        temp.blit(source, (0, 0))
+        temp.set_alpha(opacity)
+        target.blit(temp, location)
+
     def update(self):
         # handle mouse and keyboard events
         self.check_keyboard_and_mouse()
@@ -83,17 +92,24 @@ class World:
         # offset this position so the sprite appears to be standing
         # in the middle of the tile
         sprite_position = Point((raw_ground_position.x
-                                  - self.terrain.get_tile_increment().x
+                                  #- self.terrain.get_tile_increment().x#//2
+                                  - sprite.get_width()//2
                                   ),
                                  (raw_ground_position.y
                                   - sprite.get_height()
-                                  + self.terrain.get_tile_increment().y
+                                  + self.terrain.get_tile_increment().y * 1.5
                                   )
                                  )
         # add the viewpoint offset
         position = Point(sprite_position.x + offset_position.x,
                          sprite_position.y + offset_position.y)
-        self.display.blit(sprite, position)
+        # self.display.blit(sprite, position,
+        #                   special_flags=pygame.BLEND_MULT)
+        self.blit_alpha(self.display, sprite, position, 255)
+        # DEBUG bounding box
+        if BOUNDING_BOX:  # used for debug
+            box = pygame.Rect(position, (sprite.get_width(), sprite.get_height()))
+            pygame.draw.rect(self.display, "red", box, 2)
         self.talking_head.update()
         self.basket.update()
         self.editor.draw()
@@ -103,7 +119,7 @@ class World:
         self.clock.tick()
         self.frame_counter += 1
         if self.frame_counter > 200:  # to avoid slowdown due to fps spam
-            print(int(self.clock.get_fps()))
+            #print(int(self.clock.get_fps()))
             self.frame_counter = 0
 
     def mouse_over_editor(self) -> bool:
@@ -131,9 +147,12 @@ class World:
             for event in pygame.event.get():
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if pygame.mouse.get_pressed()[0]:  # LMB
-                        # terrain window, so we are dragging
-                        self.drag_start = Point(*pygame.mouse.get_pos())
-                        self.old_viewpoint = self.viewpoint
+                        if self.talking_head.mouse_over():
+                            self.talking_head.cycle_head()
+                        else:
+                            # terrain window, so we are dragging
+                            self.drag_start = Point(*pygame.mouse.get_pos())
+                            self.old_viewpoint = self.viewpoint
                     elif pygame.mouse.get_pressed()[2]:  # right button
                         self.terrain.rotate()
                 elif event.type == pygame.MOUSEWHEEL:
