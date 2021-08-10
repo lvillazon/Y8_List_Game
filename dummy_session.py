@@ -6,5 +6,5 @@ class DummySession():
     def __init__(self):
         pass
 
-    def save_session(self, list_of_source_lines, list_of_errors):
+    def save_run(self, list_of_source_lines, list_of_errors):
         pass

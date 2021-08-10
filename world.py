@@ -1,25 +1,20 @@
-import pygame
 from math import copysign
-
-from pygame import KEYUP
-
 import characters
-import spritesheet
-from Robot import Robot
 from config import *
 from console_messages import console_msg
 from dummy_session import DummySession
 from panel import Panel
+import point
 from terrain import Terrain
 from talking_head import TalkingHead
-from code_editor import CodeWindow
+from farm_editor import FarmCodeWindow
 
 
 class World:
     def __init__(self, screen):
         console_msg('Initialising world', 0)
         self.display = screen
-        self.zoom = 0.25
+        self.zoom = 0.6
         self.terrain = Terrain(screen, 5, 8, self.zoom)
         self.viewpoint = Point(screen.get_width() // 2,
                                screen.get_height() // 2)
@@ -34,9 +29,11 @@ class World:
                             )
 
         # Characters
-        self.farmer = characters.Character("assets\\green_bears_left.png",
-                                           Point(2,4),
-                                           self.zoom)
+        self.farmer = characters.Robot("Bob",
+                                       self,
+                                       "assets\\green_bears_left.png",
+                                       Point(2,4),
+                                       self.zoom)
 
         # load fonts
         if pygame.font.get_init() is False:
@@ -47,16 +44,15 @@ class World:
         self.code_font = pygame.font.Font(CODE_FONT_FILE, 18)
         console_msg("Deja Vu Sans Mono font loaded", 3)
 
-        self.farmer_computer = Robot()
         self.dummy_session = DummySession()
-        self.editor = CodeWindow(screen,
+        self.editor = FarmCodeWindow(screen,
                                  300,
                                  self.code_font,
-                                 self.farmer_computer, # where the code is hosted
+                                 self.farmer, # where the code is hosted
                                  self.dummy_session,
-                                 width = self.display.get_width() - self.basket.size.x)
+                                 width=(self.display.get_width()
+                                        - self.basket.size.x))
         self.editor_position = (0, WINDOW_SIZE.y - self.editor.height)
-        #self.editor.show()
 
         self.running = True
         self.frame_counter = 0
@@ -101,16 +97,26 @@ class World:
                                   )
                                  )
         # add the viewpoint offset
-        position = Point(sprite_position.x + offset_position.x,
-                         sprite_position.y + offset_position.y)
+        final_position = point.add_points(sprite_position, offset_position)
         # self.display.blit(sprite, position,
         #                   special_flags=pygame.BLEND_MULT)
-        self.blit_alpha(self.display, sprite, position, 255)
+        self.blit_alpha(self.display, sprite, final_position, 255)
         # DEBUG bounding box
         if BOUNDING_BOX:  # used for debug
-            box = pygame.Rect(position, (sprite.get_width(), sprite.get_height()))
+            box = pygame.Rect(final_position,
+                              (sprite.get_width(), sprite.get_height()))
             pygame.draw.rect(self.display, "red", box, 2)
-        self.talking_head.update()
+
+        # draw any speech bubbles
+        if self.farmer.speaking:
+            position = point.add_points(final_position,
+                                        self.farmer.get_speech_bubble_offset())
+
+            # if self.farmer.facing_right:
+            #     position[X] += ???  # to put the callout spike next to his mouth
+            self.display.blit(self.farmer.get_speech_bubble(), position)
+
+        #self.talking_head.update()
         self.basket.update()
         self.editor.draw()
         self.display.blit(self.editor.surface, self.editor_position)
@@ -164,7 +170,7 @@ class World:
                         # constrain zoom between min_ and max_
                         self.zoom = min(max(self.zoom, min_zoom), max_zoom)
                         self.terrain.change_zoom(self.zoom)
-                        self.farmer.zoom(self.zoom)
+                        self.farmer.change_zoom(self.zoom)
 
             # check for ongoing mouse-drag
             if pygame.mouse.get_pressed()[0]:  # LMB held down
@@ -174,3 +180,15 @@ class World:
                     self.viewpoint = Point(self.old_viewpoint.x + drag_x,
                                            self.old_viewpoint.y + drag_y)
 
+    def busy(self):
+        """ returns true if there is anything happening that must complete
+        before the interpreter continues running the player's code.
+        This allows us to halt code execution while certain animations
+        complete for example.
+
+        At the moment nothing triggers the busy state, but we
+        will probably want to set it when the farmer is completing an action
+        eg moving
+        """
+
+        return False
