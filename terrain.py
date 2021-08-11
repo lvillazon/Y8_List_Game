@@ -9,11 +9,12 @@ from config import *
 
 
 class Terrain:
-    def __init__(self, display, length, width, zoom):
+    def __init__(self, display, length, width, zoom, cultivated):
         # create an isometric tile grid, of width x length tiles
         self._display = display
         self.original_block_size = 256  # default for zoom = 1.0
         self.zoom = zoom
+        self.cultivated = cultivated
         # signals that the landscape should be regenerated from tiles
         self.landscape_cache_dirty = True
 
@@ -50,7 +51,7 @@ class Terrain:
         self.all_tiles = {}
         self.change_zoom(self.zoom)
 
-        # build the 'map' of tile numbers representing the terrain tiles
+        # build the grid of tile colours representing the terrain tiles
         # this might eventually be read from a file
         self.columns = width
         self.rows = length
@@ -58,9 +59,15 @@ class Terrain:
         for x in range(width):
             row = []
             for y in range(length):
-                tile = random.choice(list(self.tile_colours.values()))
+                if Point(x,y) in self.cultivated:
+                    tile = BROWN
+                else:
+                    tile = DARK_GREEN
                 row.append(tile)
             self.tile_grid.append(row)
+
+        # set the colour of all furrows
+
 
         # generate a single image composed of the tiles arranged in the grid
         self.landscape = self.regen_landscape()

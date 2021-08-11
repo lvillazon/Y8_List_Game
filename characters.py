@@ -73,15 +73,21 @@ class Robot(Character):
         console_msg(name + " command interpreter initialised", 2)
         self.source_code = []
         self.output = []
-        # getters and setters for all the programmable world variables
-        self.world_variables = {}
-        # {
-        #     'bit_x': (self.world.get_bit_x, self.world.set_bit_x),
-        #     'bit_y': (self.world.get_bit_y, self.world.set_bit_y),
-        #     'me_x': (self.world.get_player_x, self.world.set_player_x),
-        #     'me_y': (self.world.get_player_y, self.world.set_player_y),
-        #     'data': (self.world.get_data, self.world.set_data)
-        # }
+        self.x = 67
+        # this dictionary contains all the special variables that
+        # can be used in player programs, together with the variable
+        # or property that they access. This dictionary is used to
+        # update the locals and globals dicts in the interpreter,
+        # so make sure you don't have magic variables called
+        # __builtins__, __name__, __main__, __doc__ or __package__
+        # or you will overwrite the existing ones with unpredictable effects
+        # if we want to reinstate sync_world_variables in Interpreter,
+        # each magic_variable entry should be a tuple, with getter and setter
+        # references for each one. But maybe we need a more sophisticated
+        # system anyway to handle all the list methods...
+        self.magic_variables = {
+            'bob_x': self.x,
+        }
         # read/write variables need special treatment,
         # so we track them separately
         self.writable_names = [] #['bit_x', 'bit_y']  # , 'data']
@@ -201,4 +207,22 @@ class Robot(Character):
 
     def set_source_code(self, statement_list):
         self.source_code = statement_list
+
+    def add_magic_variable(self):
+        # update the magic_variables dictionary
+        # this can't be done by manipulating the variable directly,
+        # because this wouldn't update the
+        pass
+
+class Farmer(Robot):
+    """ a farmer is a programmable entity who is also able to till the soil.
+    This means they have access to the list of furrows from the World
+    object. Currently Farmer Bob is the only farmer."""
+
+    def __init__(self, name, world, image_file: string,
+                 start_position: Point, zoom, furrows):
+        super().__init__(name, world, image_file, start_position, zoom)
+        self.furrows = furrows
+        self.magic_variables['row1'] = self.furrows[0]
+        #self.add_magic_variable('furrows', self.furrows)
 

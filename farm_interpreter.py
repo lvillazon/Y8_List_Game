@@ -155,19 +155,19 @@ class VirtualMachine:
         """halts execution immediately"""
         self.running = False
 
-    def sync_world_variables(self, frame):
+    def sync_magic_variables(self, frame):
         # request to set any game variables
         # that were changed by the running program
-        # this uses the getters and setters defined in the world_variables dict
+        # this uses the getters and setters defined in the magic_variables dict
         # to request a change to the correct variable and then block
         # further program execution until the world variable matches the
         # program variable, or a timeout occurs (eg due to an obstacle)
-        GET = 0  # index into world_variables tuple
+        GET = 0  # index into magic_variables tuple
         SET = 1
         # TODO does this need to be as high as 100?
         UPDATE_TIMEOUT = 50  # number of updates without change before we bail
-        for v in self.robot.world_variables:
-            w = self.robot.world_variables[v]  # for brevity
+        for v in self.robot.magic_variables:
+            w = self.robot.magic_variables[v]  # for brevity
             target_value = frame.global_names[v]
             current_value = w[GET]()
             if v == 'data':
@@ -212,10 +212,11 @@ class VirtualMachine:
 
     def run(self, global_names=None, local_names=None):
         """ creates an entry point for code execution on the vm"""
-        # clear the enable flag, so that the puzzle must be reset before
+        # the run_enabled flag is not currently cleared on run,
+        # so the puzzle doesn't need to be reset before
         # running again.
         if self.run_enabled:
-            self.run_enabled = False
+            #self.run_enabled = False
             if self.byte_code:
                 console_msg('Executing...', 5)
                 self.running = True
@@ -259,17 +260,14 @@ class VirtualMachine:
             global_names = self.frame.global_names
             local_names = {}
         else:
-            global_names = local_names = {
+            global_names = {
                 '__builtins__': __builtins__,
                 '__name__': '__main__',
                 '__doc__': None,
                 '__package__': None,
-                # 'bit_x': self.world.bit_x,  # predefine globals to link to world
-                # 'bit_y': self.world.bit_y,
-                # 'me_x': self.world.player_x,
-                # 'me_y': self.world.player_y,
-                # 'data': self.world.data,
             }
+            global_names.update(self.robot.magic_variables)
+            local_names = global_names
         local_names.update(callargs)
         frame = Frame(code, global_names, local_names, self.frame)
         return frame
@@ -447,7 +445,11 @@ class VirtualMachine:
             while self.world.busy():
                 self.world.update()
             # makes sure game variables in the program affect the world
-            self.sync_world_variables(frame)
+            # TODO this is currently disabled. Should I use a different system?
+            # it's possible that we don't actually need to manually sync
+            # since there isn't a separate player that can move independently
+            # from Farmer Bob
+            #self.sync_magic_variables(frame)
 
             byte_name, arguments = self.parse_byte_and_args()
             stack_unwind_reason = self.dispatch(byte_name, arguments)
@@ -854,6 +856,14 @@ class VirtualMachine:
 
     def byte_STORE_FAST(self, name):
         self.frame.local_names[name] = self.pop()
+
+    def byte_STORE_SUBSCR(self):
+        # implements TOS1[TOS] = TOS2
+        # added with 0.1 of Thingummy Farm
+        index = self.pop()
+        list = self.pop()
+        new_value = self.pop()
+        list[index] = new_value
 
     UNARY_OPERATORS = {
         'POSITIVE': operator.pos,

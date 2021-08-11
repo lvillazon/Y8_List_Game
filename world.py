@@ -3,6 +3,7 @@ import characters
 from config import *
 from console_messages import console_msg
 from dummy_session import DummySession
+from furrow import Furrow
 from panel import Panel
 import point
 from terrain import Terrain
@@ -15,7 +16,13 @@ class World:
         console_msg('Initialising world', 0)
         self.display = screen
         self.zoom = 0.6
-        self.terrain = Terrain(screen, 5, 8, self.zoom)
+
+        # starting plots for the terrain
+        # eventually this will come from a level map or something
+        self.furrows = [Furrow('row1', Point(0,3), Point(5,3))]
+
+        self.terrain = Terrain(screen, 5, 8, self.zoom,
+                               self.get_all_cultivated())
         self.viewpoint = Point(screen.get_width() // 2,
                                screen.get_height() // 2)
         self.old_viewpoint = Point(0,0)
@@ -29,11 +36,12 @@ class World:
                             )
 
         # Characters
-        self.farmer = characters.Robot("Bob",
+        self.farmer = characters.Farmer("Bob",
                                        self,
                                        "assets\\green_bears_left.png",
                                        Point(2,4),
-                                       self.zoom)
+                                       self.zoom,
+                                       self.furrows)
 
         # load fonts
         if pygame.font.get_init() is False:
@@ -192,3 +200,12 @@ class World:
         """
 
         return False
+
+    def get_all_cultivated(self):
+        # returns a set of all tiles coordinates that are in one
+        # of the furrows
+        all_tiles = set()
+        for f in self.furrows:
+            for plot in f:
+                all_tiles.add(plot.coords)
+        return all_tiles
